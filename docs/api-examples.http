@@ -1,0 +1,19 @@
+### 추천 생성
+POST http://localhost:8080/api/recommendations
+Content-Type: application/json
+
+{
+  "companyName": "포스타입",
+  "category": "KOREAN"
+}
+
+### 다시 추천
+POST http://localhost:8080/api/recommendations/1/retry
+
+### 식당 선택
+POST http://localhost:8080/api/recommendations/1/selection
+Content-Type: application/json
+
+{
+  "restaurantId": 1
+}

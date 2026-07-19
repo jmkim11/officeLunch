@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Office Lunch</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <span class="eyebrow">OFFICE LUNCH</span>
+      <h1>오늘 점심,<br>고민 대신 추천.</h1>
+      <p>회사와 음식 종류를 선택하면 한 곳만 추천합니다. 마음에 들지 않으면 이전 식당을 제외하고 다시 추천합니다.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="form-title">
+      <div id="setupView">
+        <h2 id="form-title">점심 추천 시작</h2>
+        <form id="recommendationForm">
+          <label for="companyName">회사 또는 근무 지역</label>
+          <input id="companyName" name="companyName" type="text" minlength="2" maxlength="100" placeholder="예: 포스타입 성수 오피스" required>
+
+          <fieldset>
+            <legend>오늘 먹고 싶은 종류</legend>
+            <div class="category-grid">
+              <label><input type="radio" name="category" value="KOREAN" checked><span>한식</span></label>
+              <label><input type="radio" name="category" value="JAPANESE"><span>일식</span></label>
+              <label><input type="radio" name="category" value="CHINESE"><span>중식</span></label>
+              <label><input type="radio" name="category" value="WESTERN"><span>양식</span></label>
+            </div>
+          </fieldset>
+
+          <button class="primary" type="submit">한 곳 추천받기</button>
+        </form>
+      </div>
+
+      <div id="resultView" class="hidden" aria-live="polite">
+        <p class="result-label">오늘의 추천</p>
+        <h2 id="restaurantName">식당 이름</h2>
+        <p id="resultDescription">이 식당은 아직 선택되지 않았습니다.</p>
+        <div class="actions">
+          <button id="retryButton" class="secondary" type="button">다른 곳 추천</button>
+          <button id="selectButton" class="primary" type="button">이곳으로 결정</button>
+        </div>
+        <button id="restartButton" class="text-button" type="button">처음부터 다시</button>
+      </div>
+
+      <div id="message" class="message hidden" role="alert"></div>
+    </section>
+
+    <footer>작지만 끝까지 동작하는 점심 추천 MVP</footer>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>

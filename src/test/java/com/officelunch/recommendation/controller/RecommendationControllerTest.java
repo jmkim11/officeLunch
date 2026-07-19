@@ -64,6 +64,15 @@ class RecommendationControllerTest {
     }
 
     @Test
+    void 읽을_수_없는_JSON이면_400을_반환한다() throws Exception {
+        mockMvc.perform(post("/api/recommendations/sessions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"category\":"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
     void 다음_추천시_200과_새로운_식당을_반환한다() throws Exception {
         configure(List.of(
             restaurant(1L, "김치찌개집"),

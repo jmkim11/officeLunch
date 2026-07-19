@@ -53,20 +53,24 @@ public class RecommendationSession {
         throw new BusinessException(ErrorCode.RECOMMENDATION_EXHAUSTED);
     }
 
-    public void select(Long restaurantId) {
-          if (status == RecommendationStatus.SELECTED) {
-              throw new IllegalStateException("이미 식당을 선택한 추천 세션입니다.");
-          }
+    public Restaurant select(Long restaurantId) {
+        if (status == RecommendationStatus.SELECTED) {
+            throw new BusinessException(ErrorCode.RECOMMENDATION_ALREADY_SELECTED);
+        }
 
-          boolean exists = candidates.stream()
-              .anyMatch(restaurant -> restaurant.getId().equals(restaurantId));
+        if (!recommendedRestaurantIds.contains(restaurantId)) {
+            throw new BusinessException(ErrorCode.RESTAURANT_NOT_RECOMMENDED);
+        }
 
-          if (!exists) {
-              throw new IllegalArgumentException("후보에 없는 식당은 선택할 수 없습니다.");
-          }
+        Restaurant selectedRestaurant = candidates.stream()
+            .filter(restaurant -> restaurant.getId().equals(restaurantId))
+            .findFirst()
+            .orElseThrow(() -> new BusinessException(ErrorCode.RESTAURANT_NOT_RECOMMENDED));
 
-          this.selectedRestaurantId = restaurantId;
-          this.status = RecommendationStatus.SELECTED;
+        this.selectedRestaurantId = restaurantId;
+        this.status = RecommendationStatus.SELECTED;
+
+        return selectedRestaurant;
     }
 
     public RecommendationStatus getStatus() {

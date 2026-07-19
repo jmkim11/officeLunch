@@ -2,6 +2,7 @@ package com.officelunch.recommendation.controller;
 
 import com.officelunch.recommendation.dto.CreateRecommendationSessionRequest;
 import com.officelunch.recommendation.dto.RecommendationResponse;
+import com.officelunch.recommendation.dto.SelectRestaurantRequest;
 import com.officelunch.recommendation.service.RecommendationService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -32,5 +33,16 @@ public class RecommendationController {
     @PostMapping("/{sessionId}/next")
     public RecommendationResponse recommendNext(@PathVariable String sessionId) {
         return recommendationService.recommendNext(sessionId);
+    }
+
+    @PostMapping("/{sessionId}/selection")
+    public RecommendationResponse selectRestaurant(
+        @PathVariable String sessionId,
+        @Valid @RequestBody SelectRestaurantRequest request
+    ) {
+        return recommendationService.selectRestaurant(
+            sessionId,
+            request.getRestaurantId()
+        );
     }
 }

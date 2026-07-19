@@ -97,6 +97,43 @@ class RecommendationServiceTest {
         assertEquals(ErrorCode.RECOMMENDATION_EXHAUSTED, exception.getErrorCode());
     }
 
+    @Test
+    void 추천받은_식당을_선택하면_SELECTED_상태를_반환한다() {
+        RecommendationService service = new RecommendationService(
+            new InMemoryRestaurantRepository(List.of(restaurant())),
+            new InMemoryRecommendationSessionRepository()
+        );
+        RecommendationResponse recommendation = service.createSession(FoodCategory.KOREAN);
+
+        RecommendationResponse selection = service.selectRestaurant(
+            recommendation.getSessionId(),
+            recommendation.getRestaurant().getId()
+        );
+
+        assertEquals("SELECTED", selection.getStatus().name());
+        assertEquals(recommendation.getRestaurant().getId(), selection.getRestaurant().getId());
+    }
+
+    @Test
+    void 추천받지_않은_식당_선택은_실패한다() {
+        RecommendationService service = new RecommendationService(
+            new InMemoryRestaurantRepository(List.of(
+                restaurant(1L, "김치찌개집"),
+                restaurant(2L, "된장찌개집")
+            )),
+            new InMemoryRecommendationSessionRepository()
+        );
+        RecommendationResponse recommendation = service.createSession(FoodCategory.KOREAN);
+        long notRecommendedId = recommendation.getRestaurant().getId() == 1L ? 2L : 1L;
+
+        BusinessException exception = assertThrows(
+            BusinessException.class,
+            () -> service.selectRestaurant(recommendation.getSessionId(), notRecommendedId)
+        );
+
+        assertEquals(ErrorCode.RESTAURANT_NOT_RECOMMENDED, exception.getErrorCode());
+    }
+
     private Restaurant restaurant() {
         return restaurant(1L, "김치찌개집");
     }

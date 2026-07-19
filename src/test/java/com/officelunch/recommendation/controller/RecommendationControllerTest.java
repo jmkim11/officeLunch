@@ -103,6 +103,56 @@ class RecommendationControllerTest {
             .andExpect(jsonPath("$.code").value("RECOMMENDATION_EXHAUSTED"));
     }
 
+    @Test
+    void 추천받은_식당을_선택하면_200과_SELECTED를_반환한다() throws Exception {
+        RecommendationResponse recommendation = service.createSession(FoodCategory.KOREAN);
+
+        mockMvc.perform(post(
+                "/api/recommendations/sessions/{sessionId}/selection",
+                recommendation.getSessionId()
+            )
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"restaurantId\":" + recommendation.getRestaurant().getId() + "}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("SELECTED"))
+            .andExpect(jsonPath("$.restaurant.id")
+                .value(recommendation.getRestaurant().getId()));
+    }
+
+    @Test
+    void 추천받지_않은_식당을_선택하면_400을_반환한다() throws Exception {
+        configure(List.of(
+            restaurant(1L, "김치찌개집"),
+            restaurant(2L, "된장찌개집")
+        ));
+        RecommendationResponse recommendation = service.createSession(FoodCategory.KOREAN);
+        long notRecommendedId = recommendation.getRestaurant().getId() == 1L ? 2L : 1L;
+
+        mockMvc.perform(post(
+                "/api/recommendations/sessions/{sessionId}/selection",
+                recommendation.getSessionId()
+            )
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"restaurantId\":" + notRecommendedId + "}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("RESTAURANT_NOT_RECOMMENDED"));
+    }
+
+    @Test
+    void 식당_ID가_0이면_400을_반환한다() throws Exception {
+        RecommendationResponse recommendation = service.createSession(FoodCategory.KOREAN);
+
+        mockMvc.perform(post(
+                "/api/recommendations/sessions/{sessionId}/selection",
+                recommendation.getSessionId()
+            )
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"restaurantId\":0}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+            .andExpect(jsonPath("$.message").value("식당 ID는 1 이상이어야 합니다."));
+    }
+
     private Restaurant restaurant(Long id, String name) {
         return new Restaurant(
             id,

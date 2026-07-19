@@ -47,6 +47,14 @@ public class RecommendationService {
         return RecommendationResponse.from(session, nextRecommendation);
     }
 
+    public RecommendationResponse selectRestaurant(String sessionId, Long restaurantId) {
+        RecommendationSession session = findSession(sessionId);
+        Restaurant selectedRestaurant = session.select(restaurantId);
+        sessionRepository.save(session);
+
+        return RecommendationResponse.from(session, selectedRestaurant);
+    }
+
     private RecommendationSession findSession(String sessionId) {
         return sessionRepository.findById(sessionId)
             .orElseThrow(() -> new BusinessException(

@@ -15,6 +15,11 @@ import com.officelunch.restaurant.domain.RestaurantStatus;
 import com.officelunch.restaurant.domain.WaitRisk;
 import com.officelunch.restaurant.repository.InMemoryRestaurantRepository;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 class RecommendationServiceTest {
@@ -132,6 +137,51 @@ class RecommendationServiceTest {
         );
 
         assertEquals(ErrorCode.RESTAURANT_NOT_RECOMMENDED, exception.getErrorCode());
+    }
+
+    @Test
+    void 같은_세션의_동시_다음_추천은_서로_다른_식당을_반환한다() throws Exception {
+        RecommendationService service = new RecommendationService(
+            new InMemoryRestaurantRepository(List.of(
+                restaurant(1L, "김치찌개집"),
+                restaurant(2L, "된장찌개집"),
+                restaurant(3L, "제육볶음집")
+            )),
+            new InMemoryRecommendationSessionRepository()
+        );
+        RecommendationResponse first = service.createSession(FoodCategory.KOREAN);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        try {
+            Future<RecommendationResponse> second = executor.submit(
+                () -> recommendAfterSignal(service, first.getSessionId(), ready, start)
+            );
+            Future<RecommendationResponse> third = executor.submit(
+                () -> recommendAfterSignal(service, first.getSessionId(), ready, start)
+            );
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+
+            assertNotEquals(
+                second.get(5, TimeUnit.SECONDS).getRestaurant().getId(),
+                third.get(5, TimeUnit.SECONDS).getRestaurant().getId()
+            );
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private RecommendationResponse recommendAfterSignal(
+        RecommendationService service,
+        String sessionId,
+        CountDownLatch ready,
+        CountDownLatch start
+    ) throws InterruptedException {
+        ready.countDown();
+        start.await();
+        return service.recommendNext(sessionId);
     }
 
     private Restaurant restaurant() {

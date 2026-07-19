@@ -1,6 +1,7 @@
 package com.officelunch.recommendation.domain;
 
 import com.officelunch.common.error.BusinessException;
+import com.officelunch.common.error.ErrorCode;
 import com.officelunch.restaurant.domain.FoodCategory;
 import com.officelunch.restaurant.domain.Restaurant;
 import com.officelunch.restaurant.domain.RestaurantStatus;
@@ -65,7 +66,12 @@ class RecommendationSessionTest {
 
         session.recommend();
 
-        assertThrows(BusinessException.class, session::recommend);
+        BusinessException exception = assertThrows(
+            BusinessException.class,
+            session::recommend
+        );
+
+        assertEquals(ErrorCode.RECOMMENDATION_EXHAUSTED, exception.getErrorCode());
         assertEquals(RecommendationStatus.EXHAUSTED, session.getStatus());
     }
 
@@ -77,10 +83,12 @@ class RecommendationSessionTest {
         ));
         session.recommend();
 
-        assertThrows(
+        BusinessException exception = assertThrows(
             BusinessException.class,
             () -> session.select(2L)
         );
+
+        assertEquals(ErrorCode.RESTAURANT_NOT_RECOMMENDED, exception.getErrorCode());
     }
 
     @Test
@@ -106,7 +114,12 @@ class RecommendationSessionTest {
 
         session.select(recommended.getId());
 
-        assertThrows(BusinessException.class, session::recommend);
+        BusinessException exception = assertThrows(
+            BusinessException.class,
+            session::recommend
+        );
+
+        assertEquals(ErrorCode.RECOMMENDATION_ALREADY_SELECTED, exception.getErrorCode());
     }
 
     @Test
@@ -117,10 +130,26 @@ class RecommendationSessionTest {
         Restaurant recommended = session.recommend();
         session.select(recommended.getId());
 
-        assertThrows(
+        BusinessException exception = assertThrows(
             BusinessException.class,
             () -> session.select(recommended.getId())
         );
+
+        assertEquals(ErrorCode.RECOMMENDATION_ALREADY_SELECTED, exception.getErrorCode());
+    }
+
+    @Test
+    void 후보_소진_후에도_추천받은_식당을_선택할_수_있다() {
+        RecommendationSession session = new RecommendationSession(List.of(
+            restaurant(1L, "김치찌개집", RestaurantStatus.ACTIVE)
+        ));
+        Restaurant recommended = session.recommend();
+        assertThrows(BusinessException.class, session::recommend);
+
+        session.select(recommended.getId());
+
+        assertEquals(RecommendationStatus.SELECTED, session.getStatus());
+        assertEquals(recommended.getId(), session.getSelectedRestaurantId());
     }
 
     private Restaurant restaurant(Long id, String name, RestaurantStatus status) {

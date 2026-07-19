@@ -41,18 +41,28 @@ public class RecommendationService {
 
     public RecommendationResponse recommendNext(String sessionId) {
         RecommendationSession session = findSession(sessionId);
-        Restaurant nextRecommendation = session.recommend();
-        sessionRepository.save(session);
 
-        return RecommendationResponse.from(session, nextRecommendation);
+        synchronized (session) {
+            try {
+                Restaurant nextRecommendation = session.recommend();
+                return RecommendationResponse.from(session, nextRecommendation);
+            } finally {
+                sessionRepository.save(session);
+            }
+        }
     }
 
     public RecommendationResponse selectRestaurant(String sessionId, Long restaurantId) {
         RecommendationSession session = findSession(sessionId);
-        Restaurant selectedRestaurant = session.select(restaurantId);
-        sessionRepository.save(session);
 
-        return RecommendationResponse.from(session, selectedRestaurant);
+        synchronized (session) {
+            try {
+                Restaurant selectedRestaurant = session.select(restaurantId);
+                return RecommendationResponse.from(session, selectedRestaurant);
+            } finally {
+                sessionRepository.save(session);
+            }
+        }
     }
 
     private RecommendationSession findSession(String sessionId) {

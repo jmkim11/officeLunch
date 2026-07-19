@@ -5,7 +5,6 @@ import com.officelunch.restaurant.domain.Restaurant;
 import com.officelunch.restaurant.domain.RestaurantStatus;
 import com.officelunch.restaurant.domain.WaitRisk;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -26,13 +25,6 @@ public class InMemoryRestaurantRepository implements RestaurantRepository {
             .filter(restaurant -> restaurant.getCategory() == category)
             .filter(restaurant -> restaurant.getRestaurantStatus() == RestaurantStatus.ACTIVE)
             .toList();
-    }
-
-    @Override
-    public Optional<Restaurant> findById(Long restaurantId) {
-        return restaurants.stream()
-            .filter(restaurant -> restaurant.getId().equals(restaurantId))
-            .findFirst();
     }
 
     private static List<Restaurant> createSampleRestaurants() {

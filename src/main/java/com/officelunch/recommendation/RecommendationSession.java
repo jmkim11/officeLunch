@@ -43,7 +43,7 @@ public class RecommendationSession {
 
     public void requireActive() {
         if (status != RecommendationStatus.ACTIVE) {
-            throw new InvalidRecommendationStateException("활성 상태의 추천 세션만 변경할 수 있습니다.");
+            throw new RecommendationException("INVALID_RECOMMENDATION_STATE", "활성 상태의 추천 세션만 변경할 수 있습니다.");
         }
     }
 

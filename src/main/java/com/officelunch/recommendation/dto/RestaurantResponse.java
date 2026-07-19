@@ -1,6 +1,10 @@
-package com.officelunch.restaurant.domain;
+package com.officelunch.recommendation.dto;
 
-public class Restaurant {
+import com.officelunch.restaurant.domain.FoodCategory;
+import com.officelunch.restaurant.domain.Restaurant;
+import com.officelunch.restaurant.domain.WaitRisk;
+
+public class RestaurantResponse {
     private final Long id;
     private final String name;
     private final FoodCategory category;
@@ -10,10 +14,9 @@ public class Restaurant {
     private final int walkingMinutes;
     private final int averagePrice;
     private final WaitRisk waitRisk;
-    private final RestaurantStatus restaurantStatus;
     private final String externalPlaceId;
 
-    public Restaurant(
+    public RestaurantResponse(
         Long id,
         String name,
         FoodCategory category,
@@ -23,7 +26,6 @@ public class Restaurant {
         int walkingMinutes,
         int averagePrice,
         WaitRisk waitRisk,
-        RestaurantStatus restaurantStatus,
         String externalPlaceId
     ) {
         this.id = id;
@@ -35,8 +37,22 @@ public class Restaurant {
         this.walkingMinutes = walkingMinutes;
         this.averagePrice = averagePrice;
         this.waitRisk = waitRisk;
-        this.restaurantStatus = restaurantStatus;
         this.externalPlaceId = externalPlaceId;
+    }
+
+    public static RestaurantResponse from(Restaurant restaurant) {
+        return new RestaurantResponse(
+            restaurant.getId(),
+            restaurant.getName(),
+            restaurant.getCategory(),
+            restaurant.getAddress(),
+            restaurant.getLatitude(),
+            restaurant.getLongitude(),
+            restaurant.getWalkingMinutes(),
+            restaurant.getAveragePrice(),
+            restaurant.getWaitRisk(),
+            restaurant.getExternalPlaceId()
+        );
     }
 
     public Long getId() {
@@ -73,10 +89,6 @@ public class Restaurant {
 
     public WaitRisk getWaitRisk() {
         return waitRisk;
-    }
-
-    public RestaurantStatus getRestaurantStatus() {
-        return restaurantStatus;
     }
 
     public String getExternalPlaceId() {

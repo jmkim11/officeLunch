@@ -1,5 +1,6 @@
 package com.officelunch.recommendation.domain;
 
+import com.officelunch.common.error.BusinessException;
 import com.officelunch.restaurant.domain.FoodCategory;
 import com.officelunch.restaurant.domain.Restaurant;
 import com.officelunch.restaurant.domain.RestaurantStatus;
@@ -16,7 +17,7 @@ class RecommendationSessionTest {
     @Test
     void 후보가_없으면_세션_생성_실패한다() {
         assertThrows(
-            IllegalArgumentException.class,
+            BusinessException.class,
             () -> new RecommendationSession(List.of())
         );
     }
@@ -24,7 +25,7 @@ class RecommendationSessionTest {
     @Test
     void 후보가_null이면_세션_생성_실패한다() {
         assertThrows(
-            IllegalArgumentException.class,
+            BusinessException.class,
             () -> new RecommendationSession(null)
         );
     }
@@ -64,7 +65,7 @@ class RecommendationSessionTest {
 
         session.recommend();
 
-        assertThrows(IllegalStateException.class, session::recommend);
+        assertThrows(BusinessException.class, session::recommend);
         assertEquals(RecommendationStatus.EXHAUSTED, session.getStatus());
     }
 
@@ -101,7 +102,7 @@ class RecommendationSessionTest {
 
         session.select(1L);
 
-        assertThrows(IllegalStateException.class, session::recommend);
+        assertThrows(BusinessException.class, session::recommend);
     }
 
     private Restaurant restaurant(Long id, String name, RestaurantStatus status) {
@@ -112,8 +113,11 @@ class RecommendationSessionTest {
             "서울시 강남구 테헤란로",
             37.5000,
             127.0300,
+            5,
+            10000,
             WaitRisk.LOW,
-            status
+            status,
+            "test:" + id
         );
     }
 }

@@ -1,5 +1,7 @@
 package com.officelunch.recommendation.service;
 
+import com.officelunch.common.error.BusinessException;
+import com.officelunch.common.error.ErrorCode;
 import com.officelunch.recommendation.domain.RecommendationSession;
 import com.officelunch.recommendation.dto.RecommendationResponse;
 import com.officelunch.recommendation.repository.RecommendationSessionRepository;
@@ -35,5 +37,20 @@ public class RecommendationService {
         sessionRepository.save(session);
 
         return RecommendationResponse.from(session, firstRecommendation);
+    }
+
+    public RecommendationResponse recommendNext(String sessionId) {
+        RecommendationSession session = findSession(sessionId);
+        Restaurant nextRecommendation = session.recommend();
+        sessionRepository.save(session);
+
+        return RecommendationResponse.from(session, nextRecommendation);
+    }
+
+    private RecommendationSession findSession(String sessionId) {
+        return sessionRepository.findById(sessionId)
+            .orElseThrow(() -> new BusinessException(
+                ErrorCode.RECOMMENDATION_SESSION_NOT_FOUND
+            ));
     }
 }

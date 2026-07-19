@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.officelunch.common.error.GlobalExceptionHandler;
+import com.officelunch.recommendation.dto.RecommendationResponse;
 import com.officelunch.recommendation.repository.InMemoryRecommendationSessionRepository;
 import com.officelunch.recommendation.service.RecommendationService;
 import com.officelunch.restaurant.domain.FoodCategory;
@@ -21,11 +22,16 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class RecommendationControllerTest {
     private MockMvc mockMvc;
+    private RecommendationService service;
 
     @BeforeEach
     void setUp() {
-        RecommendationService service = new RecommendationService(
-            new InMemoryRestaurantRepository(List.of(restaurant())),
+        configure(List.of(restaurant(1L, "김치찌개집")));
+    }
+
+    private void configure(List<Restaurant> restaurants) {
+        service = new RecommendationService(
+            new InMemoryRestaurantRepository(restaurants),
             new InMemoryRecommendationSessionRepository()
         );
         RecommendationController controller = new RecommendationController(service);
@@ -57,10 +63,50 @@ class RecommendationControllerTest {
             .andExpect(jsonPath("$.message").value("음식 카테고리는 필수입니다."));
     }
 
-    private Restaurant restaurant() {
+    @Test
+    void 다음_추천시_200과_새로운_식당을_반환한다() throws Exception {
+        configure(List.of(
+            restaurant(1L, "김치찌개집"),
+            restaurant(2L, "된장찌개집")
+        ));
+        RecommendationResponse first = service.createSession(FoodCategory.KOREAN);
+        long expectedRestaurantId = first.getRestaurant().getId() == 1L ? 2L : 1L;
+
+        mockMvc.perform(post(
+                "/api/recommendations/sessions/{sessionId}/next",
+                first.getSessionId()
+            ))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.sessionId").value(first.getSessionId()))
+            .andExpect(jsonPath("$.restaurant.id").value(expectedRestaurantId));
+    }
+
+    @Test
+    void 존재하지_않는_세션의_다음_추천은_404를_반환한다() throws Exception {
+        mockMvc.perform(post(
+                "/api/recommendations/sessions/{sessionId}/next",
+                "missing-session"
+            ))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value("RECOMMENDATION_SESSION_NOT_FOUND"));
+    }
+
+    @Test
+    void 추천_후보를_모두_사용하면_409를_반환한다() throws Exception {
+        RecommendationResponse first = service.createSession(FoodCategory.KOREAN);
+
+        mockMvc.perform(post(
+                "/api/recommendations/sessions/{sessionId}/next",
+                first.getSessionId()
+            ))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value("RECOMMENDATION_EXHAUSTED"));
+    }
+
+    private Restaurant restaurant(Long id, String name) {
         return new Restaurant(
-            1L,
-            "김치찌개집",
+            id,
+            name,
             FoodCategory.KOREAN,
             "서울특별시 강남구 테헤란로",
             37.5000,
@@ -69,7 +115,7 @@ class RecommendationControllerTest {
             10000,
             WaitRisk.LOW,
             RestaurantStatus.ACTIVE,
-            "test:1"
+            "test:" + id
         );
     }
 }

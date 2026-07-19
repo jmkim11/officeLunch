@@ -5,6 +5,7 @@ import com.officelunch.recommendation.dto.RecommendationResponse;
 import com.officelunch.recommendation.service.RecommendationService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,5 +27,10 @@ public class RecommendationController {
         @Valid @RequestBody CreateRecommendationSessionRequest request
     ) {
         return recommendationService.createSession(request.getCategory());
+    }
+
+    @PostMapping("/{sessionId}/next")
+    public RecommendationResponse recommendNext(@PathVariable String sessionId) {
+        return recommendationService.recommendNext(sessionId);
     }
 }

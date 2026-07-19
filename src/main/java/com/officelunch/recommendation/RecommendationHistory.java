@@ -37,4 +37,5 @@ public class RecommendationHistory {
     public RecommendationSession getSession() { return session; }
     public Restaurant getRestaurant() { return restaurant; }
     public boolean isSelected() { return selected; }
+    public LocalDateTime getRecommendedAt() { return recommendedAt; }
 }

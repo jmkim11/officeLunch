@@ -6,11 +6,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
-@DataJpaTest
-@Import(RecommendationService.class)
+@SpringBootTest
+@Transactional
 class RecommendationServiceTest {
     @Autowired RecommendationService recommendationService;
     @Autowired RestaurantRepository restaurantRepository;
@@ -18,8 +18,8 @@ class RecommendationServiceTest {
 
     @BeforeEach
     void setUp() {
-        restaurantRepository.save(new Restaurant("오픈AI 코리아", "KOREAN", "한식당"));
-        restaurantRepository.save(new Restaurant("오픈AI 코리아", "KOREAN", "김치집"));
+        restaurantRepository.save(new Restaurant("restaurant-1", "오픈AI 코리아", "한식당", "KOREAN"));
+        restaurantRepository.save(new Restaurant("restaurant-2", "오픈AI 코리아", "김치집", "KOREAN"));
     }
 
     @Test
@@ -28,7 +28,7 @@ class RecommendationServiceTest {
         RecommendationResponse second = recommendationService.retry(first.getSessionId());
 
         assertThat(second.getRestaurantId()).isNotEqualTo(first.getRestaurantId());
-        assertThat(historyRepository.findBySessionIdOrderByRecommendedAtAsc(first.getSessionId())).hasSize(2);
+        assertThat(historyRepository.findBySession_IdOrderByRecommendedAtAsc(first.getSessionId())).hasSize(2);
     }
 
     @Test
@@ -46,5 +46,14 @@ class RecommendationServiceTest {
 
         assertThatThrownBy(() -> recommendationService.retry(response.getSessionId()))
                 .isInstanceOf(InvalidRecommendationStateException.class);
+    }
+
+    @Test
+    void failsWhenAllCandidatesAreExhausted() {
+        RecommendationResponse first = recommendationService.create("오픈AI 코리아", "KOREAN");
+        recommendationService.retry(first.getSessionId());
+
+        assertThatThrownBy(() -> recommendationService.retry(first.getSessionId()))
+                .isInstanceOf(NoRestaurantCandidateException.class);
     }
 }

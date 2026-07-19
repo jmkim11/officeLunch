@@ -29,39 +29,38 @@ public class RecommendationService {
 
     @Transactional
     public RecommendationResponse retry(Long sessionId) {
-        RecommendationSession session = getActiveSession(sessionId);
-        return recommendNext(session);
+        return recommendNext(getActiveSession(sessionId));
     }
 
     @Transactional
     public RecommendationResponse select(Long sessionId, Long restaurantId) {
         RecommendationSession session = getActiveSession(sessionId);
         RecommendationHistory history = historyRepository
-                .findBySessionIdOrderByRecommendedAtAsc(sessionId)
+                .findBySession_IdOrderByRecommendedAtAsc(sessionId)
                 .stream()
-                .filter(item -> item.getRestaurantId().equals(restaurantId))
+                .filter(item -> item.getRestaurant().getId().equals(restaurantId))
                 .findFirst()
                 .orElseThrow(() -> new RestaurantNotRecommendedException("추천받지 않은 식당은 선택할 수 없습니다."));
 
         history.select();
         session.complete();
-        return new RecommendationResponse(session.getId(), history.getRestaurantId(), history.getRestaurantName(), session.getStatus());
+        Restaurant restaurant = history.getRestaurant();
+        return new RecommendationResponse(session.getId(), restaurant.getId(), restaurant.getName(), session.getStatus());
     }
 
     private RecommendationResponse recommendNext(RecommendationSession session) {
         List<Restaurant> candidates = restaurantRepository
                 .findByCompanyNameAndCategoryOrderByIdAsc(session.getCompanyName(), session.getCategory())
                 .stream()
-                .filter(restaurant -> !historyRepository.existsBySessionIdAndRestaurantId(session.getId(), restaurant.getId()))
+                .filter(restaurant -> !historyRepository.existsBySession_IdAndRestaurant_Id(session.getId(), restaurant.getId()))
                 .toList();
 
         if (candidates.isEmpty()) {
-            session.exhaust();
             throw new NoRestaurantCandidateException("추천 가능한 식당이 더 이상 없습니다.");
         }
 
         Restaurant selected = candidates.get(0);
-        historyRepository.save(new RecommendationHistory(session.getId(), selected));
+        historyRepository.save(new RecommendationHistory(session, selected));
         return new RecommendationResponse(session.getId(), selected.getId(), selected.getName(), session.getStatus());
     }
 

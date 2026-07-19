@@ -11,6 +11,9 @@ public class Restaurant {
     @Column(name = "external_id", nullable = false)
     private String externalId;
 
+    @Column(name = "company_name", nullable = false)
+    private String companyName;
+
     @Column(nullable = false)
     private String name;
 
@@ -19,14 +22,16 @@ public class Restaurant {
 
     protected Restaurant() {}
 
-    public Restaurant(String externalId, String name, String category) {
+    public Restaurant(String externalId, String companyName, String name, String category) {
         this.externalId = externalId;
+        this.companyName = companyName;
         this.name = name;
         this.category = category;
     }
 
     public Long getId() { return id; }
     public String getExternalId() { return externalId; }
+    public String getCompanyName() { return companyName; }
     public String getName() { return name; }
     public String getCategory() { return category; }
 }

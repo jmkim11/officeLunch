@@ -4,6 +4,6 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RecommendationHistoryRepository extends JpaRepository<RecommendationHistory, Long> {
-    List<RecommendationHistory> findBySessionIdOrderByRecommendedAtAsc(Long sessionId);
-    boolean existsBySessionIdAndRestaurantId(Long sessionId, Long restaurantId);
+    List<RecommendationHistory> findBySession_IdOrderByRecommendedAtAsc(Long sessionId);
+    boolean existsBySession_IdAndRestaurant_Id(Long sessionId, Long restaurantId);
 }

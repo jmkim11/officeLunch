@@ -1,5 +1,9 @@
 package com.officelunch.recommendation.domain;
 
+import com.officelunch.restaurant.domain.FoodCategory;
+import com.officelunch.restaurant.domain.Restaurant;
+import com.officelunch.restaurant.domain.RestaurantStatus;
+import com.officelunch.restaurant.domain.WaitRisk;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

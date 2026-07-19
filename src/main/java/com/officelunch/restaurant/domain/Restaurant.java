@@ -1,17 +1,5 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
+package com.officelunch.restaurant.domain;
 
-package com.officelunch.recommendation.domain;
-
-/**
- *
- * @author 김정민
- */
-// 식당 정보를 파악하려면
-// 식당 이름
-// 위치 정보
 public class Restaurant {
     private final Long id;
     private final String name;
@@ -31,48 +19,46 @@ public class Restaurant {
         double longitude,
         WaitRisk waitRisk,
         RestaurantStatus restaurantStatus
-    ){
+    ) {
         this.id = id;
         this.name = name;
-        this.address = address;
         this.category = category;
+        this.address = address;
         this.latitude = latitude;
         this.longitude = longitude;
         this.waitRisk = waitRisk;
         this.restaurantStatus = restaurantStatus;
     }
 
-    public Long getId(){
+    public Long getId() {
         return id;
     }
-    
-    public String getName(){
+
+    public String getName() {
         return name;
     }
 
-    public FoodCategory getCategory(){
+    public FoodCategory getCategory() {
         return category;
     }
 
-    public String getAddress(){
+    public String getAddress() {
         return address;
     }
 
-    public WaitRisk getWaitRisk(){
-        return waitRisk;
-    }
-
-    // 위도, 경도를 반환할 필요가 있나..?
-    public double getLatitude(){
+    public double getLatitude() {
         return latitude;
     }
 
-    public double getLongitude(){
+    public double getLongitude() {
         return longitude;
     }
 
-    public RestaurantStatus getRestaurantStatus(){
-        return restaurantStatus;
+    public WaitRisk getWaitRisk() {
+        return waitRisk;
     }
 
+    public RestaurantStatus getRestaurantStatus() {
+        return restaurantStatus;
+    }
 }

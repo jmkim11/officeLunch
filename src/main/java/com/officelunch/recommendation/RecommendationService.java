@@ -1,9 +1,8 @@
 package com.officelunch.recommendation;
 
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 public class RecommendationService {
@@ -21,60 +20,55 @@ public class RecommendationService {
     }
 
     @Transactional
-    public RecommendationResponse create(CreateRecommendationRequest request) {
+    public RecommendationResponse create(String companyName, String category) {
         RecommendationSession session = sessionRepository.save(
-                new RecommendationSession(request.getCompanyName().trim(), request.getCategory().trim().toUpperCase())
+                new RecommendationSession(companyName.trim(), category.trim().toUpperCase())
         );
         return recommendNext(session);
     }
 
     @Transactional
     public RecommendationResponse retry(Long sessionId) {
-        RecommendationSession session = getSession(sessionId);
-        session.requireActive();
+        RecommendationSession session = getActiveSession(sessionId);
         return recommendNext(session);
     }
 
     @Transactional
-    public void select(Long sessionId, Long restaurantId) {
-        RecommendationSession session = getSession(sessionId);
-        session.requireActive();
-
+    public RecommendationResponse select(Long sessionId, Long restaurantId) {
+        RecommendationSession session = getActiveSession(sessionId);
         RecommendationHistory history = historyRepository
-                .findBySessionIdAndRestaurantId(sessionId, restaurantId)
-                .orElseThrow(() -> new RecommendationException(
-                        "RESTAURANT_NOT_RECOMMENDED",
-                        "추천받지 않은 식당은 선택할 수 없습니다."
-                ));
+                .findBySessionIdOrderByRecommendedAtAsc(sessionId)
+                .stream()
+                .filter(item -> item.getRestaurantId().equals(restaurantId))
+                .findFirst()
+                .orElseThrow(() -> new RestaurantNotRecommendedException("추천받지 않은 식당은 선택할 수 없습니다."));
 
         history.select();
         session.complete();
+        return new RecommendationResponse(session.getId(), history.getRestaurantId(), history.getRestaurantName(), session.getStatus());
     }
 
     private RecommendationResponse recommendNext(RecommendationSession session) {
-        List<Long> excludedIds = historyRepository.findBySessionId(session.getId()).stream()
-                .map(history -> history.getRestaurant().getId())
+        List<Restaurant> candidates = restaurantRepository
+                .findByCompanyNameAndCategoryOrderByIdAsc(session.getCompanyName(), session.getCategory())
+                .stream()
+                .filter(restaurant -> !historyRepository.existsBySessionIdAndRestaurantId(session.getId(), restaurant.getId()))
                 .toList();
-
-        List<Restaurant> candidates = excludedIds.isEmpty()
-                ? restaurantRepository.findByCategory(session.getCategory())
-                : restaurantRepository.findByCategoryAndIdNotIn(session.getCategory(), excludedIds);
 
         if (candidates.isEmpty()) {
             session.exhaust();
-            throw new RecommendationException("NO_RESTAURANT_CANDIDATE", "추천 가능한 식당이 없습니다.");
+            throw new NoRestaurantCandidateException("추천 가능한 식당이 더 이상 없습니다.");
         }
 
         Restaurant selected = candidates.get(0);
-        historyRepository.save(new RecommendationHistory(session, selected));
-        return new RecommendationResponse(session.getId(), selected, session.getStatus());
+        historyRepository.save(new RecommendationHistory(session.getId(), selected));
+        return new RecommendationResponse(session.getId(), selected.getId(), selected.getName(), session.getStatus());
     }
 
-    private RecommendationSession getSession(Long sessionId) {
-        return sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new RecommendationException(
-                        "RECOMMENDATION_NOT_FOUND",
-                        "추천 세션을 찾을 수 없습니다."
-                ));
+    private RecommendationSession getActiveSession(Long sessionId) {
+        RecommendationSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new RecommendationNotFoundException("추천 세션을 찾을 수 없습니다."));
+        session.requireActive();
+        return session;
     }
 }

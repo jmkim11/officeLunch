@@ -1,10 +1,9 @@
 package com.officelunch.recommendation;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
-import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RecommendationHistoryRepository extends JpaRepository<RecommendationHistory, Long> {
-    List<RecommendationHistory> findBySessionId(Long sessionId);
-    Optional<RecommendationHistory> findBySessionIdAndRestaurantId(Long sessionId, Long restaurantId);
+    List<RecommendationHistory> findBySessionIdOrderByRecommendedAtAsc(Long sessionId);
+    boolean existsBySessionIdAndRestaurantId(Long sessionId, Long restaurantId);
 }

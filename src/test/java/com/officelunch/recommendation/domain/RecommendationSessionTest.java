@@ -1,5 +1,11 @@
 package com.officelunch.recommendation.domain;
 
+import com.officelunch.common.error.BusinessException;
+import com.officelunch.common.error.ErrorCode;
+import com.officelunch.restaurant.domain.FoodCategory;
+import com.officelunch.restaurant.domain.Restaurant;
+import com.officelunch.restaurant.domain.RestaurantStatus;
+import com.officelunch.restaurant.domain.WaitRisk;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -12,7 +18,7 @@ class RecommendationSessionTest {
     @Test
     void 후보가_없으면_세션_생성_실패한다() {
         assertThrows(
-            IllegalArgumentException.class,
+            BusinessException.class,
             () -> new RecommendationSession(List.of())
         );
     }
@@ -20,7 +26,7 @@ class RecommendationSessionTest {
     @Test
     void 후보가_null이면_세션_생성_실패한다() {
         assertThrows(
-            IllegalArgumentException.class,
+            BusinessException.class,
             () -> new RecommendationSession(null)
         );
     }
@@ -60,20 +66,29 @@ class RecommendationSessionTest {
 
         session.recommend();
 
-        assertThrows(IllegalStateException.class, session::recommend);
+        BusinessException exception = assertThrows(
+            BusinessException.class,
+            session::recommend
+        );
+
+        assertEquals(ErrorCode.RECOMMENDATION_EXHAUSTED, exception.getErrorCode());
         assertEquals(RecommendationStatus.EXHAUSTED, session.getStatus());
     }
 
     @Test
-    void 후보에_없는_식당은_선택할_수_없다() {
+    void 추천받지_않은_식당은_선택할_수_없다() {
         RecommendationSession session = new RecommendationSession(List.of(
-            restaurant(1L, "김치찌개집", RestaurantStatus.ACTIVE)
+            restaurant(1L, "김치찌개집", RestaurantStatus.ACTIVE),
+            restaurant(2L, "된장찌개집", RestaurantStatus.ACTIVE)
         ));
+        session.recommend();
 
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> session.select(999L)
+        BusinessException exception = assertThrows(
+            BusinessException.class,
+            () -> session.select(2L)
         );
+
+        assertEquals(ErrorCode.RESTAURANT_NOT_RECOMMENDED, exception.getErrorCode());
     }
 
     @Test
@@ -81,8 +96,9 @@ class RecommendationSessionTest {
         RecommendationSession session = new RecommendationSession(List.of(
             restaurant(1L, "김치찌개집", RestaurantStatus.ACTIVE)
         ));
+        Restaurant recommended = session.recommend();
 
-        session.select(1L);
+        session.select(recommended.getId());
 
         assertEquals(RecommendationStatus.SELECTED, session.getStatus());
         assertEquals(1L, session.getSelectedRestaurantId());
@@ -94,10 +110,46 @@ class RecommendationSessionTest {
             restaurant(1L, "김치찌개집", RestaurantStatus.ACTIVE),
             restaurant(2L, "돈까스집", RestaurantStatus.ACTIVE)
         ));
+        Restaurant recommended = session.recommend();
 
-        session.select(1L);
+        session.select(recommended.getId());
 
-        assertThrows(IllegalStateException.class, session::recommend);
+        BusinessException exception = assertThrows(
+            BusinessException.class,
+            session::recommend
+        );
+
+        assertEquals(ErrorCode.RECOMMENDATION_ALREADY_SELECTED, exception.getErrorCode());
+    }
+
+    @Test
+    void 선택_완료된_세션은_다시_선택할_수_없다() {
+        RecommendationSession session = new RecommendationSession(List.of(
+            restaurant(1L, "김치찌개집", RestaurantStatus.ACTIVE)
+        ));
+        Restaurant recommended = session.recommend();
+        session.select(recommended.getId());
+
+        BusinessException exception = assertThrows(
+            BusinessException.class,
+            () -> session.select(recommended.getId())
+        );
+
+        assertEquals(ErrorCode.RECOMMENDATION_ALREADY_SELECTED, exception.getErrorCode());
+    }
+
+    @Test
+    void 후보_소진_후에도_추천받은_식당을_선택할_수_있다() {
+        RecommendationSession session = new RecommendationSession(List.of(
+            restaurant(1L, "김치찌개집", RestaurantStatus.ACTIVE)
+        ));
+        Restaurant recommended = session.recommend();
+        assertThrows(BusinessException.class, session::recommend);
+
+        session.select(recommended.getId());
+
+        assertEquals(RecommendationStatus.SELECTED, session.getStatus());
+        assertEquals(recommended.getId(), session.getSelectedRestaurantId());
     }
 
     private Restaurant restaurant(Long id, String name, RestaurantStatus status) {
@@ -108,8 +160,11 @@ class RecommendationSessionTest {
             "서울시 강남구 테헤란로",
             37.5000,
             127.0300,
+            5,
+            10000,
             WaitRisk.LOW,
-            status
+            status,
+            "test:" + id
         );
     }
 }

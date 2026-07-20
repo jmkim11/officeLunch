@@ -1,0 +1,206 @@
+package com.officelunch.recommendation.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.officelunch.common.error.BusinessException;
+import com.officelunch.common.error.ErrorCode;
+import com.officelunch.recommendation.dto.RecommendationResponse;
+import com.officelunch.recommendation.repository.InMemoryRecommendationSessionRepository;
+import com.officelunch.restaurant.domain.FoodCategory;
+import com.officelunch.restaurant.domain.Restaurant;
+import com.officelunch.restaurant.domain.RestaurantStatus;
+import com.officelunch.restaurant.domain.WaitRisk;
+import com.officelunch.restaurant.repository.InMemoryRestaurantRepository;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
+
+class RecommendationServiceTest {
+
+    @Test
+    void 세션_생성시_첫_추천과_IN_PROGRESS_상태를_반환한다() {
+        InMemoryRecommendationSessionRepository sessionRepository =
+            new InMemoryRecommendationSessionRepository();
+        RecommendationService service = new RecommendationService(
+            new InMemoryRestaurantRepository(List.of(restaurant())),
+            sessionRepository
+        );
+
+        RecommendationResponse response = service.createSession(FoodCategory.KOREAN);
+
+        assertEquals("김치찌개집", response.getRestaurant().getName());
+        assertEquals("IN_PROGRESS", response.getStatus().name());
+        assertTrue(sessionRepository.findById(response.getSessionId()).isPresent());
+    }
+
+    @Test
+    void 추천_후보가_없으면_세션_생성에_실패한다() {
+        RecommendationService service = new RecommendationService(
+            new InMemoryRestaurantRepository(List.of()),
+            new InMemoryRecommendationSessionRepository()
+        );
+
+        BusinessException exception = assertThrows(
+            BusinessException.class,
+            () -> service.createSession(FoodCategory.KOREAN)
+        );
+
+        assertEquals(ErrorCode.RECOMMENDATION_CANDIDATE_NOT_FOUND, exception.getErrorCode());
+    }
+
+    @Test
+    void 다음_추천시_이전에_추천한_식당을_제외한다() {
+        RecommendationService service = new RecommendationService(
+            new InMemoryRestaurantRepository(List.of(
+                restaurant(1L, "김치찌개집"),
+                restaurant(2L, "된장찌개집")
+            )),
+            new InMemoryRecommendationSessionRepository()
+        );
+        RecommendationResponse first = service.createSession(FoodCategory.KOREAN);
+
+        RecommendationResponse second = service.recommendNext(first.getSessionId());
+
+        assertNotEquals(first.getRestaurant().getId(), second.getRestaurant().getId());
+    }
+
+    @Test
+    void 존재하지_않는_세션의_다음_추천은_실패한다() {
+        RecommendationService service = new RecommendationService(
+            new InMemoryRestaurantRepository(List.of(restaurant())),
+            new InMemoryRecommendationSessionRepository()
+        );
+
+        BusinessException exception = assertThrows(
+            BusinessException.class,
+            () -> service.recommendNext("missing-session")
+        );
+
+        assertEquals(ErrorCode.RECOMMENDATION_SESSION_NOT_FOUND, exception.getErrorCode());
+    }
+
+    @Test
+    void 모든_후보를_추천하면_다음_추천에_실패한다() {
+        RecommendationService service = new RecommendationService(
+            new InMemoryRestaurantRepository(List.of(restaurant())),
+            new InMemoryRecommendationSessionRepository()
+        );
+        RecommendationResponse first = service.createSession(FoodCategory.KOREAN);
+
+        BusinessException exception = assertThrows(
+            BusinessException.class,
+            () -> service.recommendNext(first.getSessionId())
+        );
+
+        assertEquals(ErrorCode.RECOMMENDATION_EXHAUSTED, exception.getErrorCode());
+    }
+
+    @Test
+    void 추천받은_식당을_선택하면_SELECTED_상태를_반환한다() {
+        RecommendationService service = new RecommendationService(
+            new InMemoryRestaurantRepository(List.of(restaurant())),
+            new InMemoryRecommendationSessionRepository()
+        );
+        RecommendationResponse recommendation = service.createSession(FoodCategory.KOREAN);
+
+        RecommendationResponse selection = service.selectRestaurant(
+            recommendation.getSessionId(),
+            recommendation.getRestaurant().getId()
+        );
+
+        assertEquals("SELECTED", selection.getStatus().name());
+        assertEquals(recommendation.getRestaurant().getId(), selection.getRestaurant().getId());
+    }
+
+    @Test
+    void 추천받지_않은_식당_선택은_실패한다() {
+        RecommendationService service = new RecommendationService(
+            new InMemoryRestaurantRepository(List.of(
+                restaurant(1L, "김치찌개집"),
+                restaurant(2L, "된장찌개집")
+            )),
+            new InMemoryRecommendationSessionRepository()
+        );
+        RecommendationResponse recommendation = service.createSession(FoodCategory.KOREAN);
+        long notRecommendedId = recommendation.getRestaurant().getId() == 1L ? 2L : 1L;
+
+        BusinessException exception = assertThrows(
+            BusinessException.class,
+            () -> service.selectRestaurant(recommendation.getSessionId(), notRecommendedId)
+        );
+
+        assertEquals(ErrorCode.RESTAURANT_NOT_RECOMMENDED, exception.getErrorCode());
+    }
+
+    @Test
+    void 같은_세션의_동시_다음_추천은_서로_다른_식당을_반환한다() throws Exception {
+        RecommendationService service = new RecommendationService(
+            new InMemoryRestaurantRepository(List.of(
+                restaurant(1L, "김치찌개집"),
+                restaurant(2L, "된장찌개집"),
+                restaurant(3L, "제육볶음집")
+            )),
+            new InMemoryRecommendationSessionRepository()
+        );
+        RecommendationResponse first = service.createSession(FoodCategory.KOREAN);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        try {
+            Future<RecommendationResponse> second = executor.submit(
+                () -> recommendAfterSignal(service, first.getSessionId(), ready, start)
+            );
+            Future<RecommendationResponse> third = executor.submit(
+                () -> recommendAfterSignal(service, first.getSessionId(), ready, start)
+            );
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+
+            assertNotEquals(
+                second.get(5, TimeUnit.SECONDS).getRestaurant().getId(),
+                third.get(5, TimeUnit.SECONDS).getRestaurant().getId()
+            );
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private RecommendationResponse recommendAfterSignal(
+        RecommendationService service,
+        String sessionId,
+        CountDownLatch ready,
+        CountDownLatch start
+    ) throws InterruptedException {
+        ready.countDown();
+        start.await();
+        return service.recommendNext(sessionId);
+    }
+
+    private Restaurant restaurant() {
+        return restaurant(1L, "김치찌개집");
+    }
+
+    private Restaurant restaurant(Long id, String name) {
+        return new Restaurant(
+            id,
+            name,
+            FoodCategory.KOREAN,
+            "서울특별시 강남구 테헤란로",
+            37.5000,
+            127.0300,
+            5,
+            10000,
+            WaitRisk.LOW,
+            RestaurantStatus.ACTIVE,
+            "test:" + id
+        );
+    }
+}

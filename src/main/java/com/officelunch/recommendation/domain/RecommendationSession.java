@@ -1,52 +1,47 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-
 package com.officelunch.recommendation.domain;
 
-import java.util.Set;
-import java.util.List;
+import com.officelunch.common.error.BusinessException;
+import com.officelunch.common.error.ErrorCode;
+import com.officelunch.restaurant.domain.Restaurant;
+import com.officelunch.restaurant.domain.RestaurantStatus;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
-/**
- *
- * @author 김정민
- */
 public class RecommendationSession {
+    private final String id;
     private final List<Restaurant> candidates;
     private final Set<Long> recommendedRestaurantIds = new HashSet<>();
 
     private Long selectedRestaurantId;
     private RecommendationStatus status;
 
-    public RecommendationSession(List<Restaurant> candidates){
-        if (candidates == null || candidates.isEmpty()){
-            throw new IllegalArgumentException("추천 후보 식당이 필요합니다.");
+    public RecommendationSession(List<Restaurant> candidates) {
+        if (candidates == null || candidates.isEmpty()) {
+            throw new BusinessException(ErrorCode.RECOMMENDATION_CANDIDATE_NOT_FOUND);
         }
 
+        this.id = UUID.randomUUID().toString();
         this.candidates = List.copyOf(candidates);
         this.status = RecommendationStatus.IN_PROGRESS;
     }
 
-    public Restaurant recommend(){
-        // TODO
-        // 어떻게 할 것인가?
-        if (status == RecommendationStatus.SELECTED){
-            throw new IllegalStateException("이미 식당을 선택한 추천 세션입니다.");
-
+    public Restaurant recommend() {
+        if (status == RecommendationStatus.SELECTED) {
+            throw new BusinessException(ErrorCode.RECOMMENDATION_ALREADY_SELECTED);
         }
 
-        if (status == RecommendationStatus.EXHAUSTED){
-            throw new IllegalStateException("더 이상 추천할 식당이 없습니다.");
+        if (status == RecommendationStatus.EXHAUSTED) {
+            throw new BusinessException(ErrorCode.RECOMMENDATION_EXHAUSTED);
         }
 
-        for (Restaurant restaurant: candidates){
-            if (restaurant.getRestaurantStatus() != RestaurantStatus.ACTIVE){
+        for (Restaurant restaurant : candidates) {
+            if (restaurant.getRestaurantStatus() != RestaurantStatus.ACTIVE) {
                 continue;
             }
 
-            if (recommendedRestaurantIds.contains(restaurant.getId())){
+            if (recommendedRestaurantIds.contains(restaurant.getId())) {
                 continue;
             }
 
@@ -55,30 +50,38 @@ public class RecommendationSession {
         }
 
         status = RecommendationStatus.EXHAUSTED;
-        throw new IllegalStateException("더 이상 추천할 식당이 없습니다.");
+        throw new BusinessException(ErrorCode.RECOMMENDATION_EXHAUSTED);
     }
 
-    public void select(Long restaurantId) {
-          if (status == RecommendationStatus.SELECTED) {
-              throw new IllegalStateException("이미 식당을 선택한 추천 세션입니다.");
-          }
+    public Restaurant select(Long restaurantId) {
+        if (status == RecommendationStatus.SELECTED) {
+            throw new BusinessException(ErrorCode.RECOMMENDATION_ALREADY_SELECTED);
+        }
 
-          boolean exists = candidates.stream()
-              .anyMatch(restaurant -> restaurant.getId().equals(restaurantId));
+        if (!recommendedRestaurantIds.contains(restaurantId)) {
+            throw new BusinessException(ErrorCode.RESTAURANT_NOT_RECOMMENDED);
+        }
 
-          if (!exists) {
-              throw new IllegalArgumentException("후보에 없는 식당은 선택할 수 없습니다.");
-          }
+        Restaurant selectedRestaurant = candidates.stream()
+            .filter(restaurant -> restaurant.getId().equals(restaurantId))
+            .findFirst()
+            .orElseThrow(() -> new BusinessException(ErrorCode.RESTAURANT_NOT_RECOMMENDED));
 
-          this.selectedRestaurantId = restaurantId;
-          this.status = RecommendationStatus.SELECTED;
+        this.selectedRestaurantId = restaurantId;
+        this.status = RecommendationStatus.SELECTED;
+
+        return selectedRestaurant;
     }
 
-    public RecommendationStatus getStatus(){
+    public RecommendationStatus getStatus() {
         return status;
     }
 
-    public Long getSelectedRestaurantId(){
+    public String getId() {
+        return id;
+    }
+
+    public Long getSelectedRestaurantId() {
         return selectedRestaurantId;
     }
 }
